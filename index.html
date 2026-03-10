@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Coil Checker</title>
+  <link rel="stylesheet" href="CSS.css">
+  <script src="coil_checker.js" defer></script>
+</head>
+<body>
+<h1>📦 Coil Number</h1>
+
+<input type="text" id="coilInput" placeholder="Enter roll number" onkeypress="if(event.key==='Enter') checkCoil('partial')">
+
+<div style="margin-top: 10px;">
+  <button onclick="checkCoil('complete')">✅ Set</button>
+  <button onclick="checkCoil('partial')">⏳ Not finished</button>
+</div>
+
+<div id="result" style="margin-top:15px; font-weight:bold;"></div>
+<div id="resultTime" style="margin-top:5px; font-weight:bold; color:green;"></div>
+
+<div style="margin-top: 20px; font-size: 0.9em; color: #666;">
+  <span id="hint"></span>
+</div>
+</body>
+</html>
