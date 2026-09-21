@@ -1,36 +1,68 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+
+
+if ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1') {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+} else {
+    error_reporting(0);
+    ini_set('display_errors', 0);
+}
 
 date_default_timezone_set('Asia/Jerusalem');
 
-// 🔐 ЧИТАЕМ ПАРОЛЬ ИЗ СКРЫТОГО ФАЙЛА .ENV
-$envFile = __DIR__ . '/.env';
-if (file_exists($envFile)) {
-    $env = parse_ini_file($envFile);
-    $pass = $env['DB_PASSWORD'] ?? null;
-} else {
-    die(json_encode(['status' => 'error', 'message' => 'File .env NOT found!']));
-}
 
-if (!$pass) {
-    die(json_encode(['status' => 'error', 'message' => 'Password in .env is NOT set!']));
-}
-
-$coilNumber = $_GET['coil'] ?? $_POST['coil'] ?? '';
-$action = $_GET['action'] ?? $_POST['action'] ?? null;
-
-if ($coilNumber === '') {
-    echo json_encode(['status' => 'error', 'message' => 'Coil Number пустой']);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['status' => 'error', 'message' => 'POST method required']);
     exit;
 }
 
+
+$envFile = __DIR__ . '/.env';
+if (!file_exists($envFile) || !is_readable($envFile)) {
+    http_response_code(500);
+    die(json_encode(['status' => 'error', 'message' => 'File .env NOT found or not readable']));
+}
+
+$env = parse_ini_file($envFile);
+if ($env === false) {
+    http_response_code(500);
+    die(json_encode(['status' => 'error', 'message' => 'Invalid .env format']));
+}
+
+$pass = $env['DB_PASSWORD'] ?? null;
+if (!$pass) {
+    http_response_code(500);
+    die(json_encode(['status' => 'error', 'message' => 'Password in .env is NOT set']));
+}
+
+
+$coilNumber = trim($_POST['coil'] ?? '');
+$action = $_POST['action'] ?? null;
+
+if ($coilNumber === '') {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'Coil Number is empty']);
+    exit;
+}
+
+
+if (!preg_match('/^[A-Za-z0-9\-_]{1,50}$/', $coilNumber)) {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'Invalid coil format']);
+    exit;
+}
+
+
 $allowedActions = ['partial', 'complete'];
-if ($action && !in_array($action, $allowedActions)) {
+if ($action !== null && !in_array($action, $allowedActions, true)) {
+    http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
     exit;
 }
+
 
 $host = '127.0.0.1';
 $port = 3306;
@@ -44,12 +76,18 @@ try {
         $pass,
         [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false
         ]
     );
 
-    // Поиск рулона
-    $stmt = $pdo->prepare("SELECT * FROM shift_coils WHERE coil_number = :coil LIMIT 1");
+    
+    $stmt = $pdo->prepare(
+        "SELECT id, coil_number, finish_status, finished_at, order_id
+         FROM shift_coils
+         WHERE coil_number = :coil
+         LIMIT 1"
+    );
     $stmt->execute(['coil' => $coilNumber]);
     $row = $stmt->fetch();
 
@@ -58,12 +96,12 @@ try {
         exit;
     }
 
-    // Если рулон уже комплект, блокируем изменения
+    
     if ($row['finish_status'] === 'complete') {
         echo json_encode([
             'status' => 'error',
             'message' => 'The roll is already a SET ❌ — action is impossible',
-            'coil' => $row, // Отправляем данные рулона, даже если он уже готов
+            'coil' => $row,
             'action_done' => false
         ]);
         exit;
@@ -72,42 +110,86 @@ try {
     $now = date('Y-m-d H:i:s');
     $nowDisplay = date('d.m.Y H:i:s');
 
-    // Обновление статуса
-    if ($action === 'partial') {
-        $pdo->prepare("UPDATE shift_coils SET finish_status = 'partial', finished_at = NULL WHERE id = :id")
-            ->execute(['id' => $row['id']]);
-        $row['finish_status'] = 'partial';
-        $row['finished_at'] = null;
+    
+    $pdo->beginTransaction();
+
+    try {
+        if ($action === 'partial') {
+            $newStatus = 'partial';
+            $newTime = null;
+        } elseif ($action === 'complete') {
+            $newStatus = 'complete';
+            $newTime = $now;
+        } else {
+            $newStatus = $row['finish_status'];
+            $newTime = $row['finished_at'];
+        }
+
+        
+        if ($action !== null) {
+            $updateStmt = $pdo->prepare(
+                "UPDATE shift_coils
+                 SET finish_status = :status, finished_at = :time
+                 WHERE id = :id"
+            );
+            $updateStmt->execute([
+                'status' => $newStatus,
+                'time'   => $newTime,
+                'id'     => $row['id']
+            ]);
+
+            $row['finish_status'] = $newStatus;
+            $row['finished_at']   = $newTime;
+
+            try {
+                $logStmt = $pdo->prepare(
+                    "INSERT INTO coil_logs (coil_id, action, timestamp, user_ip)
+                     VALUES (:coil_id, :action, :ts, :ip)"
+                );
+                $logStmt->execute([
+                    'coil_id' => $row['id'],
+                    'action'  => $action,
+                    'ts'      => $now,
+                    'ip'      => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+                ]);
+            } catch (PDOException $e) {
+                error_log('Log insert failed: ' . $e->getMessage());
+            }
+        }
+
+        $pdo->commit();
+
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        throw $e;
     }
 
-    if ($action === 'complete') {
-        $pdo->prepare("UPDATE shift_coils SET finish_status = 'complete', finished_at = :now WHERE id = :id")
-            ->execute(['id' => $row['id'], 'now' => $now]);
-        $row['finish_status'] = 'complete';
-        $row['finished_at'] = $now;
-    }
-
-    // Получаем информацию о заказе
     $orderInfo = null;
-    if ($row['order_id']) {
-        $orderStmt = $pdo->prepare("SELECT * FROM orders WHERE id = ?");
-        $orderStmt->execute([$row['order_id']]);
-        $orderInfo = $orderStmt->fetch();
+    if (!empty($row['order_id'])) {
+        $orderStmt = $pdo->prepare(
+            "SELECT id, order_number, status
+             FROM orders
+             WHERE id = :id
+             LIMIT 1"
+        );
+        $orderStmt->execute(['id' => $row['order_id']]);
+        $orderInfo = $orderStmt->fetch() ?: null;
     }
 
     echo json_encode([
-        'status' => 'ok',
-        'message' => 'Roll found ✅',
-        'coil' => $row,
-        'order' => $orderInfo,
-        'action' => $action,
-        'datetime' => $nowDisplay,
-        'action_done' => true
+        'status'      => 'ok',
+        'message'     => 'Roll found ✅',
+        'coil'        => $row,
+        'order'       => $orderInfo,
+        'action'      => $action,
+        'datetime'    => $nowDisplay,
+        'action_done' => $action !== null
     ]);
 
 } catch (PDOException $e) {
+    http_response_code(500);
     echo json_encode([
-        'status' => 'error',
+        'status'  => 'error',
         'message' => 'DB error: ' . $e->getMessage()
     ]);
 }
