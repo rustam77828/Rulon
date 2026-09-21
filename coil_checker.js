@@ -15,11 +15,11 @@ function checkCoil(action) {
         return;
     }
 
-    // Индикатор загрузки
+    
     output.textContent = '⏳ Checking...';
     output.style.color = 'gray';
 
-    // POST
+    
     fetch('check_coil.php', {
         method: 'POST',
         headers: {
@@ -41,7 +41,7 @@ function checkCoil(action) {
                 output.textContent = data.message;
                 output.style.color = 'green';
 
-                // Показываем дату и статус
+                
                 if (data.datetime) {
                     const statusText = action === 'complete' ? '✅ Set' : '⏳ Not finished';
                     timeOutput.textContent = `${statusText} • ${data.datetime}`;
@@ -53,7 +53,7 @@ function checkCoil(action) {
                     input.focus();
                 }, 700);
 
-                // Если открыта панель истории — обновляем её
+                
                 const historyPanel = document.getElementById('historyPanel');
                 if (historyPanel && historyPanel.style.display !== 'none') {
                     loadWeek();
@@ -75,13 +75,13 @@ function checkCoil(action) {
 }
 
 
-// ====== ИСТОРИЯ ЗА НЕДЕЛЮ (вс → пт) ======
+
 async function loadWeek() {
     const panel = document.getElementById('historyPanel');
     const rangeEl = document.getElementById('weekRange');
     const historyEl = document.getElementById('weekHistory');
 
-    // Открываем панель
+    
     panel.style.display = 'block';
     historyEl.innerHTML = '⏳ Загрузка...';
 
@@ -108,7 +108,7 @@ async function loadWeek() {
             return;
         }
 
-        // Диапазон дат
+        
         rangeEl.textContent = `${data.sunday} → ${data.friday}`;
 
         if (!data.logs || !data.logs.length) {
@@ -116,7 +116,7 @@ async function loadWeek() {
             return;
         }
 
-        // Таблица
+        
         let html = '<table class="history-table">';
         html += '<tr><th>Coil</th><th>Action</th><th>Date</th><th>Time</th></tr>';
 
