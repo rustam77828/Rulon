@@ -15,10 +15,27 @@ function checkCoil(action) {
         return;
     }
 
-    const url = `check_coil.php?coil=${encodeURIComponent(coil)}&action=${action}`;
+    // Индикатор загрузки
+    output.textContent = '⏳ Checking...';
+    output.style.color = 'gray';
 
-    fetch(url)
-        .then(res => res.json())
+    // POST вместо GET
+    fetch('check_coil.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+        },
+        body: new URLSearchParams({
+            coil: coil,
+            action: action
+        })
+    })
+        .then(res => {
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}`);
+            }
+            return res.json();
+        })
         .then(data => {
             if (data.status === 'ok') {
                 output.textContent = data.message;
