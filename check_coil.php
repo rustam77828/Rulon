@@ -167,11 +167,12 @@ try {
         throw $e;
     }
 
-    // 14. Информация о заказе — только если есть
+    // 14. Информация о заказе — ИСПРАВЛЕНО под реальную структуру orders
     $orderInfo = null;
     if (!empty($row['order_id'])) {
         $orderStmt = $pdo->prepare(
-            "SELECT id, order_number, status
+            "SELECT id, order_code, diameter, thickness, target_length,
+                    start_date, end_date, max_transition_days
              FROM orders
              WHERE id = :id
              LIMIT 1"
