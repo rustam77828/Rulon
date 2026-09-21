@@ -50,7 +50,7 @@ if ($coilNumber === '') {
 }
 
 // 5. Формат coil — буквы, цифры, дефис, подчёркивание (1–50 символов)
-if (!preg_match('/^[A-Za-z0-9\-_]{1,50}$/', $coilNumber)) {
+if (!preg_match('/^[A-Za-z0-9\/\-_]{1,50}$/', $coilNumber)) {
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => 'Invalid coil format']);
     exit;
