@@ -1,16 +1,50 @@
+/* ====== ОБЩИЕ ====== */
 body {
-    font-size: 20px; /* общий размер шрифта */
+    font-size: 20px;
     font-family: Arial, sans-serif;
     margin: 0;
     min-height: 100vh;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* ====== КОНТЕЙНЕР (2 колонки) ====== */
+.container {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+    justify-content: center;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.main-panel {
+    flex: 1;
+    min-width: 400px;
+    max-width: 600px;
+    text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    text-align: center;
-    padding: 20px;
+    padding: 40px 20px;
 }
 
+.history-panel {
+    flex: 1;
+    min-width: 400px;
+    max-width: 600px;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    max-height: 85vh;
+    overflow-y: auto;
+    text-align: left;
+}
+
+/* ====== ВВОД И КНОПКИ ====== */
 input#coilInput {
     font-size: 24px;
     padding: 10px;
@@ -39,6 +73,74 @@ button:disabled {
 #hint {
     font-size: 16px;
     color: #666;
+}
+
+/* ====== ИСТОРИЯ ====== */
+.history-panel h2 {
+    margin-top: 0;
+    font-size: 22px;
+    text-align: left;
+}
+
+#weekRange {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 12px;
+    text-align: left;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+    background: #fff;
+}
+
+.history-table th {
+    background: #333;
+    color: #fff;
+    padding: 8px 10px;
+    text-align: left;
+    position: sticky;
+    top: 0;
+    font-size: 14px;
+}
+
+.history-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.history-table tr:hover {
+    background: #f0f0f0;
+}
+
+.history-table .action-complete {
+    color: green;
+    font-weight: bold;
+}
+
+.history-table .action-partial {
+    color: #e67e22;
+    font-weight: bold;
+}
+
+/* ====== МОБИЛЬНАЯ ВЕРСИЯ ====== */
+@media (max-width: 900px) {
+    .container {
+        flex-direction: column;
+        align-items: center;
+    }
+    .history-panel {
+        min-width: unset;
+        max-width: 100%;
+        width: 100%;
+        max-height: none;
+    }
+    .main-panel {
+        min-width: unset;
+        max-width: 100%;
+    }
 }
 
 

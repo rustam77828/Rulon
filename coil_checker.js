@@ -19,7 +19,7 @@ function checkCoil(action) {
     output.textContent = '⏳ Checking...';
     output.style.color = 'gray';
 
-    // POST вместо GET
+    // POST
     fetch('check_coil.php', {
         method: 'POST',
         headers: {
@@ -53,6 +53,12 @@ function checkCoil(action) {
                     input.focus();
                 }, 700);
 
+                // Если открыта панель истории — обновляем её
+                const historyPanel = document.getElementById('historyPanel');
+                if (historyPanel && historyPanel.style.display !== 'none') {
+                    loadWeek();
+                }
+
             } else {
                 output.textContent = data.message || 'Roll NOT found ❌';
                 output.style.color = 'red';
@@ -66,4 +72,75 @@ function checkCoil(action) {
             output.style.color = 'red';
             input.focus();
         });
+}
+
+
+// ====== ИСТОРИЯ ЗА НЕДЕЛЮ (вс → пт) ======
+async function loadWeek() {
+    const panel = document.getElementById('historyPanel');
+    const rangeEl = document.getElementById('weekRange');
+    const historyEl = document.getElementById('weekHistory');
+
+    // Открываем панель
+    panel.style.display = 'block';
+    historyEl.innerHTML = '⏳ Загрузка...';
+
+    try {
+        const response = await fetch('check_coil.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+            },
+            body: new URLSearchParams({
+                coil: 'week',
+                action: 'week'
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.status !== 'ok') {
+            historyEl.innerHTML = `❌ ${data.message || 'Ошибка загрузки'}`;
+            return;
+        }
+
+        // Диапазон дат
+        rangeEl.textContent = `${data.sunday} → ${data.friday}`;
+
+        if (!data.logs || !data.logs.length) {
+            historyEl.innerHTML = '<em>Нет записей за эту неделю</em>';
+            return;
+        }
+
+        // Таблица
+        let html = '<table class="history-table">';
+        html += '<tr><th>Coil</th><th>Action</th><th>Date</th><th>Time</th></tr>';
+
+        data.logs.forEach(r => {
+            const dt = r.timestamp ? r.timestamp.split(' ') : ['', ''];
+            const date = dt[0] || '';
+            const time = dt[1] ? dt[1].substring(0, 5) : '';
+            const isComplete = r.action === 'complete';
+            const actionText = isComplete ? '✅ Set' : '⏳ Partial';
+            const actionClass = isComplete ? 'action-complete' : 'action-partial';
+
+            html += `<tr>
+                <td><b>${r.coil_number || '—'}</b></td>
+                <td class="${actionClass}">${actionText}</td>
+                <td>${date}</td>
+                <td>${time}</td>
+            </tr>`;
+        });
+
+        html += '</table>';
+        historyEl.innerHTML = html;
+
+    } catch (e) {
+        console.error(e);
+        historyEl.innerHTML = `❌ ${e.message}`;
+    }
 }

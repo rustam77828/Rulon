@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
 
-// 1. Ошибки — только для локальной разработки
+
 $isLocal = in_array($_SERVER['SERVER_NAME'] ?? '', ['localhost', '127.0.0.1'], true);
 if ($isLocal) {
     error_reporting(E_ALL);
@@ -13,14 +13,14 @@ if ($isLocal) {
 
 date_default_timezone_set('Asia/Jerusalem');
 
-// 2. Только POST
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     http_response_code(405);
     echo json_encode(['status' => 'error', 'message' => 'POST method required']);
     exit;
 }
 
-// 3. Чтение .env с проверками
+
 $envFile = __DIR__ . '/.env';
 if (!file_exists($envFile) || !is_readable($envFile)) {
     http_response_code(500);
@@ -39,32 +39,37 @@ if (!$pass) {
     die(json_encode(['status' => 'error', 'message' => 'Password in .env is NOT set']));
 }
 
-// 4. Входные данные
+
 $coilNumber = trim($_POST['coil'] ?? '');
 $action = $_POST['action'] ?? null;
 
-if ($coilNumber === '') {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Coil Number is empty']);
-    exit;
+
+$isWeek = ($action === 'week');
+
+if (!$isWeek) {
+    if ($coilNumber === '') {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Coil Number is empty']);
+        exit;
+    }
+
+
+    if (!preg_match('/^[A-Za-z0-9\/\-_]{1,50}$/', $coilNumber)) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid coil format']);
+        exit;
+    }
 }
 
-// 5. Формат coil — буквы, цифры, дефис, подчёркивание (1–50 символов)
-if (!preg_match('/^[A-Za-z0-9\/\-_]{1,50}$/', $coilNumber)) {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Invalid coil format']);
-    exit;
-}
 
-// 6. Валидация action
-$allowedActions = ['partial', 'complete'];
+$allowedActions = ['partial', 'complete', 'week'];
 if ($action !== null && !in_array($action, $allowedActions, true)) {
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
     exit;
 }
 
-// 7. Подключение к БД
+
 $host = '127.0.0.1';
 $port = 3306;
 $db   = 'spiral_production';
@@ -82,7 +87,34 @@ try {
         ]
     );
 
-    // 8. Поиск рулона — конкретные поля
+
+    if ($isWeek) {
+
+        $startDate = date('Y-m-01');
+
+        $endDate = date('Y-m-d');
+
+        $stmt = $pdo->prepare(
+            "SELECT cl.id, sc.coil_number, cl.action, cl.timestamp, cl.user_ip
+             FROM coil_logs cl
+             LEFT JOIN shift_coils sc ON sc.id = cl.coil_id
+             WHERE DATE(cl.timestamp) BETWEEN :startDate AND :endDate
+             ORDER BY cl.id DESC"
+        );
+        $stmt->execute(['startDate' => $startDate, 'endDate' => $endDate]);
+        $logs = $stmt->fetchAll();
+
+        echo json_encode([
+            'status' => 'ok',
+            'sunday' => $startDate,
+            'friday' => $endDate,
+            'count'  => count($logs),
+            'logs'   => $logs
+        ]);
+        exit;
+    }
+
+
     $stmt = $pdo->prepare(
         "SELECT id, coil_number, finish_status, finished_at, order_id
          FROM shift_coils
@@ -97,7 +129,7 @@ try {
         exit;
     }
 
-    // 9. Блокировка повтора
+
     if ($row['finish_status'] === 'complete') {
         echo json_encode([
             'status' => 'error',
@@ -111,11 +143,11 @@ try {
     $now = date('Y-m-d H:i:s');
     $nowDisplay = date('d.m.Y H:i:s');
 
-    // 10. Транзакция
+
     $pdo->beginTransaction();
 
     try {
-        // 11. Новые значения
+
         if ($action === 'partial') {
             $newStatus = 'partial';
             $newTime = null;
@@ -127,7 +159,7 @@ try {
             $newTime = $row['finished_at'];
         }
 
-        // 12. Один UPDATE вместо двух
+
         if ($action !== null) {
             $updateStmt = $pdo->prepare(
                 "UPDATE shift_coils
@@ -143,7 +175,7 @@ try {
             $row['finish_status'] = $newStatus;
             $row['finished_at']   = $newTime;
 
-            // 13. Логирование
+
             try {
                 $logStmt = $pdo->prepare(
                     "INSERT INTO coil_logs (coil_id, action, timestamp, user_ip)
@@ -167,7 +199,7 @@ try {
         throw $e;
     }
 
-    // 14. Информация о заказе — ИСПРАВЛЕНО под реальную структуру orders
+
     $orderInfo = null;
     if (!empty($row['order_id'])) {
         $orderStmt = $pdo->prepare(

@@ -7,20 +7,36 @@
   <script src="coil_checker.js" defer></script>
 </head>
 <body>
-<h1>📦 Coil Number</h1>
+<div class="container">
 
-<input type="text" id="coilInput" placeholder="Enter roll number" onkeypress="if(event.key==='Enter') checkCoil('partial')">
 
-<div style="margin-top: 10px;">
-  <button onclick="checkCoil('complete')">✅ Set</button>
-  <button onclick="checkCoil('partial')">⏳ Not finished</button>
-</div>
+  <div class="main-panel">
+    <h1>📦 Coil Number</h1>
 
-<div id="result" style="margin-top:15px; font-weight:bold;"></div>
-<div id="resultTime" style="margin-top:5px; font-weight:bold; color:green;"></div>
+    <input type="text" id="coilInput" placeholder="Enter roll number"
+           onkeypress="if(event.key==='Enter') checkCoil('partial')">
 
-<div style="margin-top: 20px; font-size: 0.9em; color: #666;">
-  <span id="hint"></span>
+    <div style="margin-top: 10px;">
+      <button onclick="checkCoil('complete')">✅ Set</button>
+      <button onclick="checkCoil('partial')">⏳ Not finished</button>
+      <button onclick="loadWeek()">📋 History</button>
+    </div>
+
+    <div id="result" style="margin-top:15px; font-weight:bold;"></div>
+    <div id="resultTime" style="margin-top:5px; font-weight:bold; color:green;"></div>
+
+    <div style="margin-top: 20px; font-size: 0.9em; color: #666;">
+      <span id="hint"></span>
+    </div>
+  </div>
+
+
+  <div class="history-panel" id="historyPanel" style="display: none;">
+    <h2>📋 History — current month</h2>
+    <div id="weekRange" style="font-size: 14px; color: #666; margin-bottom: 10px;"></div>
+    <div id="weekHistory"></div>
+  </div>
+
 </div>
 </body>
 </html>
