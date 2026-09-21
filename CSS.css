@@ -1,4 +1,4 @@
-/* ====== ОБЩИЕ ====== */
+
 body {
     font-size: 20px;
     font-family: Arial, sans-serif;
@@ -8,7 +8,7 @@ body {
     box-sizing: border-box;
 }
 
-/* ====== КОНТЕЙНЕР (2 колонки) ====== */
+
 .container {
     display: flex;
     gap: 30px;
@@ -44,7 +44,7 @@ body {
     text-align: left;
 }
 
-/* ====== ВВОД И КНОПКИ ====== */
+
 input#coilInput {
     font-size: 24px;
     padding: 10px;
@@ -75,7 +75,7 @@ button:disabled {
     color: #666;
 }
 
-/* ====== ИСТОРИЯ ====== */
+
 .history-panel h2 {
     margin-top: 0;
     font-size: 22px;
@@ -125,7 +125,7 @@ button:disabled {
     font-weight: bold;
 }
 
-/* ====== МОБИЛЬНАЯ ВЕРСИЯ ====== */
+
 @media (max-width: 900px) {
     .container {
         flex-direction: column;
