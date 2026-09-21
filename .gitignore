@@ -1,15 +1,6 @@
-# macOS
 .DS_Store
-
-# IDE
 .idea/
-
-# Secrets
 .env
-
-# Python
 __pycache__/
 *.pyc
-
-# Logs
 *.log
